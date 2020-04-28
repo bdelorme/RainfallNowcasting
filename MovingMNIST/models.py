@@ -1,6 +1,4 @@
 import tensorflow as tf
-
-
 def encoder(inputs, channels, initial_state=None, initialize_to_zero=True):
     batch_size = tf.shape(inputs)[1]
     input_shape = inputs.shape.as_list()[2:]

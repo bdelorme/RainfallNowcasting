@@ -4,11 +4,10 @@ from matplotlib import pyplot as plt
 import time
 import sys
 import datetime
-
-import visualization
+import matplotlib.pyplot as plt
 from models import encoder, output_layers
 
-data = np.load("mnist_test_seq.npy")
+data = np.load(sys.argv[1]+"mnist_test_seq.npy")
 sequence_length = data.shape[0]
 image_height = data.shape[2]
 image_width = data.shape[3]
@@ -16,7 +15,7 @@ image_width = data.shape[3]
 # parameters
 input_sequence_length = 10
 batch_size = 1
-num_train_batches = 100000
+num_train_batches = 1000
 print_step = 50
 num_prediction_steps = 20
 
@@ -32,7 +31,6 @@ def build_network(input_sequences, initial_state=None, initialize_to_zero=True):
                                                           channels=encoder_channels,
                                                           initial_state=initial_state,
                                                           initialize_to_zero=initialize_to_zero)
-        encoder_saver = tf.train.Saver()
 
     # additional output network
     predictions_flat = tf.reshape(all_encoder_states,
@@ -41,7 +39,7 @@ def build_network(input_sequences, initial_state=None, initialize_to_zero=True):
 
     predictions = tf.reshape(predictions_flat, tf.shape(input_sequences))
 
-    return predictions_flat, predictions, final_encoder_state, encoder_saver
+    return predictions_flat, predictions, final_encoder_state
 
 
 def run():
@@ -56,7 +54,7 @@ def run():
 
     # build network
     with tf.variable_scope("convlstm") as scope:
-        predictions_flat, predictions, final_encoder_state, encoder_saver = build_network(input_sequences)
+        predictions_flat, predictions, final_encoder_state = build_network(input_sequences)
 
         # loss and training
         with tf.variable_scope("trainer"):
@@ -85,13 +83,8 @@ def run():
         _, _, _, new_predictions_ta = tf.while_loop(condition, body, init)
         new_predictions = new_predictions_ta.concat()
 
-    full_saver = tf.train.Saver()
-
     sess = tf.InteractiveSession()
     sess.run(tf.global_variables_initializer())
-
-    # uncomment to load pre-trained variables
-    full_saver.restore(sess, "restore/full/it_700/full")
 
     # construct summaries for tensorboard
     tf.summary.scalar('batch_loss', loss)
@@ -119,13 +112,16 @@ def run():
         sys.stdout.write("\rIteration: %i - loss %f - batches/s: %f" % (i, batch_loss, 1. / (time.time() - last_time)))
         sys.stdout.flush()
 
-        if i % print_step == 0:
-            full_saver.save(sess, "restore/full/it_{}/full".format(i))
-            encoder_saver.save(sess, "restore/encoder/it_{}/encoder".format(i))
-
-            # plot a visualization of the performance, red is the current frame (seen by the network)
-            # and green is the one-step-ahead prediction
-            visualization.animate_anaglyph_comparison(input_batch[:, 0, :, :], batch_predictions[:, 0, :, :], axes)
+    for j in range(18):
+      fig = plt.figure(figsize=(10,5))
+      axes = fig.add_subplot(121)
+      axes.text(1,3,'Predictions!',fontsize = 20, color = 'y')
+      plt.imshow(batch_predictions[j,0,:,:], cmap = 'binary')
+      axes = fig.add_subplot(122)
+      axes.text(1,3,'Ground truth',fontsize = 20, color = 'y')
+      plt.imshow(input_batch[j+1,0,:,:], cmap = 'binary')
+      name = "images/" + str(j) + "_image.png"
+      plt.savefig(name)
 
 
 if __name__ == '__main__':
