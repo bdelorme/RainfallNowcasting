@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import datetime
 
 
 def get_coords(directory, zone):
@@ -58,3 +59,4 @@ def get_hour(dt):
 
 def get_day(dt):
   return dt.day
+      

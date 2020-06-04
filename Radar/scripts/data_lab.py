@@ -4,6 +4,7 @@ from utils import *
 import datetime
 import xarray as xr
 from os import path
+import pandas as pd
 
 
 #####################################################################################################################
@@ -57,7 +58,7 @@ def get_data_and_features(directory, zone, years, months, parts_month, new_size,
                                      weather_model_max_threshold, weather_model_min_threshold)
     for key in model_data_dict.keys():
       X = add_new_channel(X, model_data_dict[key])
-      features_list.append(i)
+      features_list.append(key)
     print('Got model data')
   return X, y, features_list
 
@@ -213,9 +214,14 @@ def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, 
       fname = directory + f'{model}/{level}/{model}_{level}_{zone}_{date.year}{str(date.month).zfill(2)}{str(date.day).zfill(2)}000000.grib'
       if path.exists(fname):
         data = xr.open_dataset(fname, engine='cfgrib') 
+        if level !=  'PRECIP':
+          if data.step.values.shape[0] != 25:
+            data = interpolate_in_time(data, 25)
+        else:
+          if data.step.values.shape[0] !=24:
+            data= interpolate_in_time(data, 24)
       else:
-        fname = directory + f'{model}/{level}/{model}_{level}_{zone}_{date.year}{str(date.month).zfill(2)}{str(date.day).zfill(2)}000000.nc'
-        data = xr.open_dataset(fname, engine='netcdf4')
+        data = create_missing_array(directory, zone, model, level, date)
       for param in params[i]:
         if params_to_name[param] not in model_data_dict.keys():
           model_data_dict[params_to_name[param]] = -np.ones([N, T, H, W, 1])
@@ -292,6 +298,87 @@ def get_dates_of_interest(X_dates):
   X_dates_hour = np.vectorize(get_hour)(X_dates)
   return unique_dates_rounded_to_day, day_to_X, X_dates_hour
       
+def interpolate_in_time(array, num_timesteps):
+  T = array.dims['step']
+  H = array.dims['latitude']
+  W = array.dims['longitude']
+  array_times = array['valid_time'].values
+  date = array['time'].values
+  array_times_pd = pd.to_datetime(array_times)
+  date_pd = pd.to_datetime(date)
+  hours = list(array_times_pd.hour)
+  if array_times_pd[-1].day > date_pd.day:
+    hours[-1] = num_timesteps - 1
+  final_var = {}
+  for var in array.data_vars:
+    new_array = np.zeros([num_timesteps, H, W])
+    for h in range(len(hours)):
+      new_array[hours[h]] = array[var][h]
+    for h in range(num_timesteps):
+      if h not in hours:
+        if h < hours[0]:
+          new_array[h] = array[var][0]
+        elif h > hours[-1]:
+          new_array[h] = array[var][len(hours) - 1]
+        else:
+          m = np.argmin(abs(np.array(hours) - h))
+          if hours[m] < h:
+            new_array[h] = (hours[m+1] - h)/(hours[m + 1]- hours[m])*array[var][m] + (h-hours[m])/(hours[m+1]-hours[m])*array[var][m+1]
+          else:
+            new_array[h] = (hours[m] - h)/(hours[m]- hours[m-1])*array[var][m-1] + (h-hours[m-1])/(hours[m]-hours[m-1])*array[var][m]
+    final_var[var] = (("step", "latitude", "longitude"), new_array)
+  new_dates = np.array(pd.date_range(date_pd, periods=num_timesteps, freq='H'))
+  new_xarray = xr.Dataset(
+     final_var, coords={"latitude": array["latitude"], "longitude": array["longitude"],
+             "step": np.array(new_dates-new_dates[0], dtype='timedelta64[ns]'),
+             "valid_time": new_dates, "time": array["time"]})
+  return new_xarray
+
+
+def create_missing_array(directory, zone, model, level, date):
+  if level == '2m':
+    params = ['t2m', 'd2m', 'r']
+  elif level == '10m':
+    params = ['ws', 'p3031', 'u10', 'v10']
+  elif level == 'P_sea_level':
+    params = ['msl']
+  else:
+    params = ['tp']
+  date_prev = date + datetime.timedelta(days = -1)
+  fname_prev = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_prev.year}{str(date_prev.month).zfill(2)}{str(date_prev.day).zfill(2)}000000.grib'
+  days_prev = 1
+  while path.exists(fname_prev) == False:
+    date_prev = date_prev + datetime.timedelta(days = -1)
+    fname_prev = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_prev.year}{str(date_prev.month).zfill(2)}{str(date_prev.day).zfill(2)}000000.grib'
+    days_prev += 1
+  data_prev = xr.open_dataset(fname_prev, engine='cfgrib') 
+  days_next = 1
+  date_next = date + datetime.timedelta(days = 1)
+  fname_next = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_next.year}{str(date_next.month).zfill(2)}{str(date_next.day).zfill(2)}000000.grib'
+  while path.exists(fname_next) == False:
+    date_next = date_next + datetime.timedelta(days = 1)
+    fname_next = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_next.year}{str(date_next.month).zfill(2)}{str(date_next.day).zfill(2)}000000.grib'
+    days_next +=1
+  data_next = xr.open_dataset(fname_next, engine='cfgrib') 
+  if level !=  'PRECIP':
+    if data_prev.step.values.shape[0] != 25:
+      data_prev = interpolate_in_time(data_prev, 25)
+  else:
+    if data_prev.step.values.shape[0] !=24:
+      data_prev = interpolate_in_time(data_prev, 24)
+  if level !=  'PRECIP':
+    if data_next.step.values.shape[0] != 25:
+      data_next = interpolate_in_time(data_next, 25)
+  else:
+    if data_next.step.values.shape[0] !=24:
+      data_next = interpolate_in_time(data_next, 24)
+  data = data_prev.copy()
+  for param in params:
+    data[param] = days_next/(days_prev + days_next)*data_prev[param] + days_prev/(days_prev + days_next)*data_next[param]
+  data = data.assign_coords({'time' : date})
+  data = data.assign_coords({'valid_time': data['valid_time'].values + np.timedelta64(1,'D')})
+  return data
+
 
 #####################################################################################################################
 #####################################################################################################################
