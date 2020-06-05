@@ -2,13 +2,15 @@ import os
 import tensorflow as tf
 import numpy as np
 from matplotlib import colors
+import matplotlib
+matplotlib.use('pdf')
 import matplotlib.pyplot as plt
 plt.rcParams['mathtext.fontset'] = 'stix'
 plt.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 20
 plt.rcParams['lines.linewidth'] = 3
 
-def plot_history(history, results, save=False, foldername=''):
+def plot_history(history, results, archi, name, save=False, foldername=''):
   if save == True:
     try:
         os.mkdir(foldername)
@@ -24,9 +26,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('loss')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'loss.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_loss.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['prec'], label='Train')
@@ -35,9 +36,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('prec')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'prec.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_prec.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['recall'], label='Train')
@@ -46,9 +46,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('recall')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'recall.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_recall.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['cor'], label='Train')
@@ -57,9 +56,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('cor')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'cor.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_cor.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['acc'], label='Train')
@@ -68,9 +66,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('acc')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'acc.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_acc.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['ssim'], label='Train')
@@ -79,9 +76,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('ssim')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'ssim.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_ssim.png')
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['psnr'], label='Train')
@@ -90,9 +86,8 @@ def plot_history(history, results, save=False, foldername=''):
   plt.ylabel('psnr')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
-  plt.show()
   if save == True:
-    plt.savefig(foldername+'psnr.png')
+    plt.savefig(foldername+archi+'_'+nom_test+'_psnr.png')
 
 
 ##############################################################################################################
@@ -102,7 +97,7 @@ def plot_history(history, results, save=False, foldername=''):
 ##############################################################################################################
 
 
-def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput, 
+def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
                lat, lon, tag, save=False, foldername=''):
   #
   if save == True:
@@ -119,7 +114,7 @@ def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
           lon = tf.image.resize(lon[:,:,None], new_size)
           lon = np.asarray(lon)[:,:,0]
   #
-  cmap = colors.ListedColormap(['silver','white', 'darkslateblue', 'mediumblue','dodgerblue', 
+  cmap = colors.ListedColormap(['silver','white', 'darkslateblue', 'mediumblue','dodgerblue',
                               'skyblue','olive','mediumseagreen','cyan','lime','yellow',
                               'khaki','burlywood','orange','brown','pink','red','plum'])
   bounds = [-1,0,2,4,6,8,10,15,20,25,30,35,40,45,50,55,60,65,75]
@@ -143,8 +138,7 @@ def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
       plt.pcolormesh(lon, lat, true_track[i, :, :, 0], cmap=cmap, norm=norm)
       plt.xlabel('$x$ [$^{\circ}E$]')
       plt.ylabel('$y$ [$^{\circ}N$]')
-      cbar = plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds, 
+      cbar = plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds,
                 orientation= 'vertical').set_label('Rainfall [1/100 mm]')
-      #plt.show()
       if save == True:
-          plt.savefig(foldername+tag+'_%i.png' % (i+1))
+          plt.savefig(foldername+archi+'_'+nom_test+'_'+tag+'_%i.png' % (i+1))
