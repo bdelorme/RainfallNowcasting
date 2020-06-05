@@ -1,4 +1,3 @@
-import os
 import tensorflow as tf
 import numpy as np
 from matplotlib import colors
@@ -10,15 +9,7 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 20
 plt.rcParams['lines.linewidth'] = 3
 
-def plot_history(history, results, archi, name, save=False, foldername=''):
-  if save == True:
-    try:
-        os.mkdir(foldername)
-    except OSError:
-        print("%s already exists" % foldername)
-    else:
-        print("Created %s " % foldername)
-  #
+def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['loss'], label='Train')
   plt.plot(history.history['val_loss'], label='Val')
@@ -98,15 +89,7 @@ def plot_history(history, results, archi, name, save=False, foldername=''):
 
 
 def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
-               lat, lon, tag, save=False, foldername=''):
-  #
-  if save == True:
-    try:
-        os.mkdir(foldername)
-    except OSError:
-        print("%s already exists" % foldername)
-    else:
-        print("Created %s " % foldername)
+               lat, lon, archi, nom_test, tag, save=False, foldername=''):
   #
   if len(new_size) > 0:
           lat = tf.image.resize(lat[:,:,None], new_size)
