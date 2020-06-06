@@ -12,49 +12,49 @@ import pandas as pd
 
 
 def get_data_and_features(directory, zone, years, months, parts_month, new_size,
-                          input_timeframes, output_timeframes, percentage_test, 
-                          rainfall_threshold_value, features_bool, weather_model_bool, 
-                          model, weather_model_max_threshold, weather_model_min_threshold, 
+                          input_timeframes, output_timeframes,
+                          rainfall_threshold_value, features_bool, weather_model_bool,
+                          model, weather_model_max_threshold, weather_model_min_threshold,
                           features_max_threshold, features_min_threshold, overlapping_data):
-  X, y, X_dates = get_rainfall_reflectivity_quality("rainfall", rainfall_threshold_value, 
-                                                    directory, years, months, parts_month, zone, new_size, 
+  X, y, X_dates = get_rainfall_reflectivity_quality("rainfall", rainfall_threshold_value,
+                                                    directory, years, months, parts_month, zone, new_size,
                                                     input_timeframes, output_timeframes, overlapping_data)
   print('Got rainfall')
   features_list = []
   if features_bool['reflectivity'] == 1:
-    reflectivity = get_rainfall_reflectivity_quality("reflectivity", 
-                                                     features_max_threshold['reflectivity'], 
-                                                     directory, years, months, parts_month, zone, 
-                                                     new_size, input_timeframes, output_timeframes, 
+    reflectivity = get_rainfall_reflectivity_quality("reflectivity",
+                                                     features_max_threshold['reflectivity'],
+                                                     directory, years, months, parts_month, zone,
+                                                     new_size, input_timeframes, output_timeframes,
                                                      overlapping_data)
     X = add_new_channel(X, reflectivity)
     features_list.append('reflectivity')
     print('Got reflectivity')
   if features_bool['rainfall quality'] == 1:
     quality = get_rainfall_reflectivity_quality("quality",
-                                                features_max_threshold['rainfall quality'], 
-                                                directory, years, months, parts_month, zone, 
-                                                new_size, input_timeframes, output_timeframes, 
+                                                features_max_threshold['rainfall quality'],
+                                                directory, years, months, parts_month, zone,
+                                                new_size, input_timeframes, output_timeframes,
                                                 overlapping_data)
     X = add_new_channel(X, quality)
     features_list.append('quality')
     print('Got rainfall quality')
   if features_bool['land sea'] == 1:
-    lsm = get_lsm_relief_mask(directory, zone, new_size, "LAND_GDS0_SFC", 
-                              features_max_threshold['land sea'], 
+    lsm = get_lsm_relief_mask(directory, zone, new_size, "LAND_GDS0_SFC",
+                              features_max_threshold['land sea'],
                               features_min_threshold['land sea'])
     X = add_new_channel(X, lsm)
     features_list.append('land sea mask')
     print('Got land sea')
   if features_bool['elevation'] == 1:
-    elevation = get_lsm_relief_mask(directory , zone, new_size, 'DIST_GDS0_SFC', 
-                                    features_max_threshold['elevation'], 
+    elevation = get_lsm_relief_mask(directory , zone, new_size, 'DIST_GDS0_SFC',
+                                    features_max_threshold['elevation'],
                                     features_min_threshold['elevation'])
     X = add_new_channel(X, elevation)
     features_list.append('elevation')
     print('Got elevation')
   if (model=='arpege') or (model=='arome'):
-    model_data_dict = get_model_data(directory, zone, model, weather_model_bool, X_dates, new_size, 
+    model_data_dict = get_model_data(directory, zone, model, weather_model_bool, X_dates, new_size,
                                      weather_model_max_threshold, weather_model_min_threshold)
     for key in model_data_dict.keys():
       X = add_new_channel(X, model_data_dict[key])
@@ -67,8 +67,8 @@ def get_data_and_features(directory, zone, years, months, parts_month, new_size,
 #####################################################################################################################
 
 
-def get_rainfall_reflectivity_quality(tag, max_threshold_value, directory, 
-                                      years, months, parts_month, zone, new_size, 
+def get_rainfall_reflectivity_quality(tag, max_threshold_value, directory,
+                                      years, months, parts_month, zone, new_size,
                                       input_timeframes, output_timeframes, overlapping_data):
   data = np.array([])
   for year in years:
@@ -126,7 +126,7 @@ def get_rainfall_reflectivity_quality(tag, max_threshold_value, directory,
   data[data > max_threshold_value] = 1
   data[data < 0] = -1
   # Get I/O
-  X, y, X_dates = multivariate_data(data, input_timeframes, output_timeframes, 
+  X, y, X_dates = multivariate_data(data, input_timeframes, output_timeframes,
                                     overlapping_data, dates)
   if tag == 'rainfall':
     X = tf.cast(X, tf.float32)
@@ -199,7 +199,7 @@ def split_train_test(percentage_test, X, y):
 #####################################################################################################################
 
 
-def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, size, 
+def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, size,
                    weather_model_max_threshold, weather_model_min_threshold):
   N, T = X_dates.shape
   H, W = size
@@ -213,7 +213,7 @@ def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, 
       directory = directory_dataset + 'models_2D_' + zone + '/'
       fname = directory + f'{model}/{level}/{model}_{level}_{zone}_{date.year}{str(date.month).zfill(2)}{str(date.day).zfill(2)}000000.grib'
       if path.exists(fname):
-        data = xr.open_dataset(fname, engine='cfgrib') 
+        data = xr.open_dataset(fname, engine='cfgrib')
         if level !=  'PRECIP':
           if data.step.values.shape[0] != 25:
             data = interpolate_in_time(data, 25)
@@ -291,15 +291,13 @@ def get_levels_params(weather_model_bool):
   return levels, params, params_to_name
 
 def get_dates_of_interest(X_dates):
-  year_month_day_hour = np.array([])
   X_dates_rounded_to_day = np.vectorize(round_to_day)(X_dates)
   unique_dates_rounded_to_day, day_to_X = np.unique(X_dates_rounded_to_day, return_inverse=True)
   day_to_X = day_to_X.reshape(X_dates.shape)
   X_dates_hour = np.vectorize(get_hour)(X_dates)
   return unique_dates_rounded_to_day, day_to_X, X_dates_hour
-      
+
 def interpolate_in_time(array, num_timesteps):
-  T = array.dims['step']
   H = array.dims['latitude']
   W = array.dims['longitude']
   array_times = array['valid_time'].values
@@ -351,7 +349,7 @@ def create_missing_array(directory, zone, model, level, date):
     date_prev = date_prev + datetime.timedelta(days = -1)
     fname_prev = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_prev.year}{str(date_prev.month).zfill(2)}{str(date_prev.day).zfill(2)}000000.grib'
     days_prev += 1
-  data_prev = xr.open_dataset(fname_prev, engine='cfgrib') 
+  data_prev = xr.open_dataset(fname_prev, engine='cfgrib')
   days_next = 1
   date_next = date + datetime.timedelta(days = 1)
   fname_next = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_next.year}{str(date_next.month).zfill(2)}{str(date_next.day).zfill(2)}000000.grib'
@@ -359,7 +357,7 @@ def create_missing_array(directory, zone, model, level, date):
     date_next = date_next + datetime.timedelta(days = 1)
     fname_next = directory + f'{model}/{level}/{model}_{level}_{zone}_{date_next.year}{str(date_next.month).zfill(2)}{str(date_next.day).zfill(2)}000000.grib'
     days_next +=1
-  data_next = xr.open_dataset(fname_next, engine='cfgrib') 
+  data_next = xr.open_dataset(fname_next, engine='cfgrib')
   if level !=  'PRECIP':
     if data_prev.step.values.shape[0] != 25:
       data_prev = interpolate_in_time(data_prev, 25)

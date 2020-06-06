@@ -9,7 +9,7 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 20
 plt.rcParams['lines.linewidth'] = 3
 
-def plot_history(history, results, archi, nom_test, save=False, foldername=''):
+def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['loss'], label='Train')
   plt.plot(history.history['val_loss'], label='Val')
@@ -18,73 +18,84 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_loss.png')
+    plt.savefig(foldername+nom_test+'_loss.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['prec'], label='Train')
-  plt.plot(history.history['val_prec'], label='Val')
-  plt.axhline(results['prec'], linestyle='--', color='k', label='Test')
-  plt.ylabel('prec')
+  plt.plot(history.history['masked_prec'], label='Train')
+  plt.plot(history.history['val_masked_prec'], label='Val')
+  plt.axhline(results['masked_prec'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_prec')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_prec.png')
+    plt.savefig(foldername+nom_test+'_masked_prec.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['recall'], label='Train')
-  plt.plot(history.history['val_recall'], label='Val')
-  plt.axhline(results['recall'], linestyle='--', color='k', label='Test')
-  plt.ylabel('recall')
+  plt.plot(history.history['masked_recall'], label='Train')
+  plt.plot(history.history['val_masked_recall'], label='Val')
+  plt.axhline(results['masked_recall'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_recall')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_recall.png')
+    plt.savefig(foldername+nom_test+'_masked_recall.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['cor'], label='Train')
-  plt.plot(history.history['val_cor'], label='Val')
-  plt.axhline(results['cor'], linestyle='--', color='k', label='Test')
-  plt.ylabel('cor')
+  plt.plot(history.history['masked_cor'], label='Train')
+  plt.plot(history.history['val_masked_cor'], label='Val')
+  plt.axhline(results['masked_cor'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_cor')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_cor.png')
+    plt.savefig(foldername+nom_test+'_masked_cor.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['acc'], label='Train')
-  plt.plot(history.history['val_acc'], label='Val')
-  plt.axhline(results['acc'], linestyle='--', color='k', label='Test')
-  plt.ylabel('acc')
+  plt.plot(history.history['masked_acc'], label='Train')
+  plt.plot(history.history['val_masked_acc'], label='Val')
+  plt.axhline(results['masked_acc'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_acc')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_acc.png')
+    plt.savefig(foldername+nom_test+'_masked_acc.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['ssim'], label='Train')
-  plt.plot(history.history['val_ssim'], label='Val')
-  plt.axhline(results['ssim'], linestyle='--', color='k', label='Test')
-  plt.ylabel('ssim')
+  plt.plot(history.history['masked_ssim'], label='Train')
+  plt.plot(history.history['val_masked_ssim'], label='Val')
+  plt.axhline(results['masked_ssim'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_ssim')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_ssim.png')
+    plt.savefig(foldername+nom_test+'_masked_ssim.png')
     plt.close()
   #
   plt.figure(figsize=(12,6))
-  plt.plot(history.history['psnr'], label='Train')
-  plt.plot(history.history['val_psnr'], label='Val')
-  plt.axhline(results['psnr'], linestyle='--', color='k', label='Test')
-  plt.ylabel('psnr')
+  plt.plot(history.history['masked_psnr'], label='Train')
+  plt.plot(history.history['val_masked_psnr'], label='Val')
+  plt.axhline(results['masked_psnr'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_psnr')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
-    plt.savefig(foldername+archi+'_'+nom_test+'_psnr.png')
+    plt.savefig(foldername+nom_test+'_masked_psnr.png')
+    plt.close()
+  #
+  plt.figure(figsize=(12,6))
+  plt.plot(history.history['masked_BMW'], label='Train')
+  plt.plot(history.history['val_masked_BMW'], label='Val')
+  plt.axhline(results['masked_BMW'], linestyle='--', color='k', label='Test')
+  plt.ylabel('masked_BMW')
+  plt.xlabel('epoch')
+  plt.legend(loc='upper left')
+  if save == True:
+    plt.savefig(foldername+nom_test+'_masked_BMW.png')
     plt.close()
 
 
@@ -96,7 +107,7 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
 
 
 def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
-               lat, lon, archi, nom_test, tag, save=False, foldername=''):
+               lat, lon, nom_test, tag, save=False, foldername=''):
   #
   if len(new_size) > 0:
           lat = tf.image.resize(lat[:,:,None], new_size)
@@ -128,8 +139,8 @@ def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
       plt.pcolormesh(lon, lat, true_track[i, :, :, 0], cmap=cmap, norm=norm)
       plt.xlabel('$x$ [$^{\circ}E$]')
       plt.ylabel('$y$ [$^{\circ}N$]')
-      cbar = plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds,
-                orientation= 'vertical').set_label('Rainfall [1/100 mm]')
+      plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds,
+                   orientation= 'vertical').set_label('Rainfall [1/100 mm]')
       if save == True:
-          plt.savefig(foldername+archi+'_'+nom_test+'_'+tag+'_%i.png' % (i+1))
+          plt.savefig(foldername+nom_test+'_'+tag+'_%i.png' % (i+1))
           plt.close()

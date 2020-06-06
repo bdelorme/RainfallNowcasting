@@ -59,4 +59,4 @@ def get_hour(dt):
 
 def get_day(dt):
   return dt.day
-      
+

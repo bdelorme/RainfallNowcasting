@@ -1,7 +1,4 @@
 import tensorflow as tf
-import tensorflow.keras as tfk
-import tensorflow.keras.layers as tfkl
-import tensorflow.keras.initializers as tfki
 import numpy as np
 
 
@@ -43,13 +40,9 @@ def convdlrm_init(H, W, C, Nout, nk, ks, lks, activ, init):
     LN3 = tf.keras.layers.LayerNormalization()(us1)
     # Prediction
     do6 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(LN3)
-    CL3 = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same',
-                                     activation=activ, kernel_initializer=init,
-                                     return_sequences=True)(do6)
-    do7 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(CL3)
     preds = tf.keras.layers.Conv3D(1, lks, padding='same',
                                    bias_initializer=tf.keras.initializers.Constant(value=-np.log(99)),
-                                   activation='sigmoid')(do7)
+                                   activation='sigmoid')(do6)
     return tf.keras.Model(inputs=inputs, outputs=preds)
 
 
