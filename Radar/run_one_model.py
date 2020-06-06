@@ -1,10 +1,14 @@
 import os
 FOLDERNAME = os.getcwd()+'/'
-print('FOLDERNAME =' + FOLDERNAME)
+print('FOLDERNAME=' + FOLDERNAME)
 #
 import numpy as np
 import tensorflow as tf
 import csv
+#
+from pathlib import Path
+import argparse
+import json
 #
 import sys
 sys.path.append(FOLDERNAME+'scripts/')
@@ -15,31 +19,41 @@ from models import *
 from metrics import *
 from plot_tools import *
 
+#########################################################################################
+################################## READ JSON EXP FILE ###################################
+#########################################################################################
+parser = argparse.ArgumentParser()
+parser.add_argument('param_file', type=Path)
+args = parser.parse_args()
+param = json.load(args.param_file.open())
+
 
 #########################################################################################
 ################################## EXPERIMENT FEATURES ##################################
 #########################################################################################
-nom_test = 'rainfall_only'      # NAME OF THE CURRENT TEST
-archi = 'ddnet'                 # NETWORK ARCHITECTURE
-new_size = [64,64]              # SIZE DATA (None = keep initial size)
-bs = 10                         # BATCH SIZE
-ep = 2                          # NB EPOCHS
+nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
+archi = param['archi']                              # NETWORK ARCHITECTURE
+new_size = [param['new_size'],param['new_size']]    # SIZE DATA (None = keep initial size)
+bs = param['batch_size']                            # BATCH SIZE
+ep = param['nb_epochs']                             # NB EPOCHS
 
 
 #########################################################################################
 #################################### NETWORK FEATURES ###################################
 #########################################################################################
-loss = 'logcosh'
-optimizer = tf.keras.optimizers.Adam(lr=1e-4)
-nk = 128
-ks = 5
-lks = 3
-if archi=='convdlrm':
-    activ = 'selu'
-    init = 'lecun_normal'
-elif archi=='ddnet':
-    activ = 'relu'
-    init = 'he_normal'
+loss = param['loss']
+if loss=='masked_logcosh':
+    loss=masked_logcosh
+elif loss=='masked_mae':
+    loss=masked_mae
+elif loss=='masked_mse':
+    loss=masked_mse
+optimizer = tf.keras.optimizers.Adam(lr=param['learning_rate'])
+nk = param['nb_filters']
+ks = param['filter_size']
+lks = param['last_filter_size']
+activ = param['activation']
+init = param['weights_initialization']
     
     
 #########################################################################################
@@ -47,10 +61,9 @@ elif archi=='ddnet':
 #########################################################################################
 csv_logger = tf.keras.callbacks.CSVLogger('models/'+archi+'_'+nom_test+'_train.csv')
 term_nan = tf.keras.callbacks.TerminateOnNaN()
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)
-callbacks_list = [term_nan, csv_logger, early_stopping]
-#reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', patience=3, factor=0.5)
-#callbacks_list = [term_nan, reduce_lr, csv_logger, early_stopping]
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=9, mode='min', restore_best_weights=True)
+reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', patience=3, factor=0.5, mode='min')
+callbacks_list = [term_nan, reduce_lr, csv_logger, early_stopping]
 #
 metrics_list = ['acc', ssim, psnr, cor,
                 tf.keras.metrics.Precision(name='prec'),
@@ -61,23 +74,23 @@ metrics_list = ['acc', ssim, psnr, cor,
 #################################### GLOBAL FEATURES ####################################
 #########################################################################################
 zone = "NW"                           # NW, SE
-years = [2017]                        # 2016, 2017, 2018
-months = [8]                          # 1...12
-parts_month = [3]                     # 1,2,3 (each month is divided in 3 parts)
-input_timeframes = 10                 # how many timeframes for input
-output_timeframes = 5                 # how many timeframes for output
-overlapping_data = 0                  # data overlap in time (= 1) or not (= 0)
+years = param['years']                # 2016, 2017, 2018
+months = param['months']              # 1..12
+parts_month = param['parts_month']    # 1,2,3 (each month is divided in 3 parts)
+input_timeframes = param['input_timeframes']                   # how many timeframes for input
+output_timeframes = param['output_timeframes']                 # how many timeframes for output
+overlapping_data = param['overlapping']                        # data overlap in time (= 1) or not (= 0)
 fraction_test = 0.1                   # fraction of test data
-rainfall_threshold_value = 80         # Value above which values are considered to be one
+rainfall_threshold_value = 80.        # Value above which values are considered to be one
 
 
 #########################################################################################
 ################################## ADDITIONAL FEATURES ##################################
 #########################################################################################
-features_bool = {'reflectivity': 0, 
-                 'rainfall quality': 0,
-                 'land sea': 0, 
-                 'elevation': 0}
+features_bool = {'reflectivity': param['reflectivity_on'], 
+                 'rainfall quality': param['quality_on'],
+                 'land sea': param['lsm_on'], 
+                 'elevation': param['relief_on']}
 features_max_threshold = {'reflectivity': 60, 
                           'rainfall quality': 100, 
                           'land sea': 1, 
@@ -87,15 +100,15 @@ features_min_threshold = {'reflectivity': 0,
                           'land sea': 0, 
                           'elevation': 0}
 #
-wf_model = None # None for no model, otherwise arpege
-weather_model_bool = {'temperature': 1, 
-                      'dew point temperature' : 1,
-                      'humidity': 1, 
-                      'wind speed': 1, 
-                      'wind directions': 1,
-                      'wind components': 1, 
-                      'pressure': 1,
-                      'precipitation': 1}
+wf_model = 'arpege' # None for no model, otherwise arpege
+weather_model_bool = {'temperature': param['temperature_on'], 
+                      'dew point temperature' : param['dew_temp_on'],
+                      'humidity': param['humidity_on'], 
+                      'wind speed': param['wind_speed_on'], 
+                      'wind directions': param['wind_dir_on'],
+                      'wind components': param['wind_comp_on'], 
+                      'pressure': param['pressure_on'],
+                      'precipitation': param['precip_on']}
 weather_model_max_threshold = {'temperature': 313, 
                                'dew point temperature' : 313,
                                'humidity': 100, 
@@ -221,6 +234,6 @@ elif archi == 'ddnet':
 lat, lon = get_coords(data_dir, zone)
 plot_track(true_track, track, rainfall_threshold_value, 
            new_size, input_timeframes, output_timeframes, 
-           lat, lon, archi, nom_test, tag='train', 
+           lat, lon, archi, nom_test, tag='test', 
            save=True, foldername=foldername)
 

@@ -19,6 +19,7 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_loss.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['prec'], label='Train')
@@ -29,6 +30,7 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_prec.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['recall'], label='Train')
@@ -39,6 +41,7 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_recall.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['cor'], label='Train')
@@ -49,36 +52,40 @@ def plot_history(history, results, archi, nom_test, save=False, foldername=''):
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_cor.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['acc'], label='Train')
   plt.plot(history.history['val_acc'], label='Val')
-  plt.axhline(results['cor'], linestyle='--', color='k', label='Test')
+  plt.axhline(results['acc'], linestyle='--', color='k', label='Test')
   plt.ylabel('acc')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_acc.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['ssim'], label='Train')
   plt.plot(history.history['val_ssim'], label='Val')
-  plt.axhline(results['cor'], linestyle='--', color='k', label='Test')
+  plt.axhline(results['ssim'], linestyle='--', color='k', label='Test')
   plt.ylabel('ssim')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_ssim.png')
+    plt.close()
   #
   plt.figure(figsize=(12,6))
   plt.plot(history.history['psnr'], label='Train')
   plt.plot(history.history['val_psnr'], label='Val')
-  plt.axhline(results['cor'], linestyle='--', color='k', label='Test')
+  plt.axhline(results['psnr'], linestyle='--', color='k', label='Test')
   plt.ylabel('psnr')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
   if save == True:
     plt.savefig(foldername+archi+'_'+nom_test+'_psnr.png')
+    plt.close()
 
 
 ##############################################################################################################
@@ -125,3 +132,4 @@ def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
                 orientation= 'vertical').set_label('Rainfall [1/100 mm]')
       if save == True:
           plt.savefig(foldername+archi+'_'+nom_test+'_'+tag+'_%i.png' % (i+1))
+          plt.close()

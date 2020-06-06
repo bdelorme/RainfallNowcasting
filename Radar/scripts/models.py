@@ -10,80 +10,47 @@ import numpy as np
 
 
 def convdlrm_init(H, W, C, Nout, nk, ks, lks, activ, init):
-  inputs = tfk.Input(shape=[None, H, W, C])
-  # Encoder
-  conv = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same', 
-                                          activation=activ, kernel_initializer=init))(inputs)
-  conv = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same', 
-                                          activation=activ, kernel_initializer=init))(conv)
-  LN = tfkl.LayerNormalization()(conv)
-  CL1, cl1_h, cl1_c, _, _ = tfkl.Bidirectional(tfkl.ConvLSTM2D(nk, ks, padding='same',
-                                                               activation=activ, kernel_initializer=init,
-                                                               return_sequences=True, return_state=True))(LN)
-  CL2, cl2_h, cl2_c = tfkl.ConvLSTM2D(nk, ks, padding='same',
-                                      activation=activ, kernel_initializer=init,
-                                      return_state=True)(CL1)
-  # Decoder 1
-  input_dec = [CL2]
-  for i in range(Nout-1):
-    input_dec.append(tf.zeros_like(CL2))
-  input_dec = tf.stack(input_dec, axis=1)
-  CL3 = tfkl.ConvLSTM2D(nk, ks, padding='same',
-                        activation=activ, kernel_initializer=init,
-                        return_sequences=True)(input_dec, initial_state=[cl1_h, cl1_c])
-  CL4 = tfkl.ConvLSTM2D(nk, ks, padding='same',
-                        activation=activ, kernel_initializer=init,
-                        return_sequences=True)(CL3, initial_state=[cl2_h, cl2_c])
-  LN = tfkl.LayerNormalization()(CL4)
-  # Deepen
-  conv1 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(LN)
-  mp = tfkl.TimeDistributed(tfkl.MaxPooling2D())(conv1)
-  conv2 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(mp)
-  mp = tfkl.TimeDistributed(tfkl.MaxPooling2D())(conv2)
-  LN = tfkl.LayerNormalization()(mp)
-  #
-  conv3 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(LN)
-  mp = tfkl.TimeDistributed(tfkl.MaxPooling2D())(conv3)
-  conv4 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(mp)
-  mp = tfkl.TimeDistributed(tfkl.MaxPooling2D())(conv4)
-  LN = tfkl.LayerNormalization()(mp)
-  #
-  conv5 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(LN)
-  us = tfkl.TimeDistributed(tfkl.UpSampling2D())(conv5)
-  concat = tfkl.Concatenate()([us, conv4])
-  conv6 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(concat)
-  us = tfkl.TimeDistributed(tfkl.UpSampling2D())(conv6)
-  concat = tfkl.Concatenate()([us, conv3])
-  LN = tfkl.LayerNormalization()(concat)
-  #
-  conv7 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(LN)
-  us = tfkl.TimeDistributed(tfkl.UpSampling2D())(conv7)
-  concat = tfkl.Concatenate()([us, conv2])
-  conv8 = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same',
-                                           activation=activ, kernel_initializer=init))(concat)
-  us = tfkl.TimeDistributed(tfkl.UpSampling2D())(conv8)
-  concat = tfkl.Concatenate()([us, conv1])
-  LN = tfkl.LayerNormalization()(concat)
-  # Decoder 2
-  CL5 = tfkl.ConvLSTM2D(nk, ks, padding='same',
-                        activation=activ, kernel_initializer=init,
-                        return_sequences=True)(LN, initial_state=[cl1_h, cl1_c])
-  CL6 = tfkl.ConvLSTM2D(nk, ks, padding='same',
-                        activation=activ, kernel_initializer=init,
-                        return_sequences=True)(CL5, initial_state=[cl2_h, cl2_c])
-  LN = tfkl.LayerNormalization()(CL6)
-  # Prediction
-  preds = tfkl.Conv3D(1, lks, padding='same',
-                      bias_initializer=tfki.Constant(value=-np.log(99)),
-                      activation='sigmoid')(LN)
-  return tfk.Model(inputs=inputs, outputs=preds)
+    inputs = tf.keras.Input(shape=[None, H, W, C])
+    # Downsample
+    conv1 = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same',
+                                            activation=activ, kernel_initializer=init))(inputs)
+    do1 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(conv1)
+    conv2 = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same',
+                                            activation=activ, kernel_initializer=init))(do1)
+    mp1 = tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D())(conv2)
+    LN1 = tf.keras.layers.LayerNormalization()(mp1)
+    do2 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(LN1)
+    # Encoder
+    CL1, cl1_h, cl1_c = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same',
+                                                   activation=activ, kernel_initializer=init,
+                                                   return_state=True)(do2)
+    # Decoder
+    do3 = tf.keras.layers.Dropout(0.7)(CL1)
+    input_dec = tf.stack([do3, tf.zeros_like(do3), tf.zeros_like(do3), tf.zeros_like(do3), tf.zeros_like(do3)], axis=1)
+    CL2 = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same',
+                                     activation=activ, kernel_initializer=init,
+                                     return_sequences=True)(input_dec,
+                                                            initial_state=[cl1_h, cl1_c])
+    LN2 = tf.keras.layers.LayerNormalization()(CL2)
+    do4 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(LN2)
+    # Upsample
+    conv3 = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same',
+                                            activation=activ, kernel_initializer=init))(do4)
+    do5 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(conv3)
+    conv4 = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same',
+                                        activation=activ, kernel_initializer=init))(do5)
+    us1 = tf.keras.layers.TimeDistributed(tf.keras.layers.UpSampling2D())(conv4)
+    LN3 = tf.keras.layers.LayerNormalization()(us1)
+    # Prediction
+    do6 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(LN3)
+    CL3 = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same',
+                                     activation=activ, kernel_initializer=init,
+                                     return_sequences=True)(do6)
+    do7 = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.7))(CL3)
+    preds = tf.keras.layers.Conv3D(1, lks, padding='same',
+                                   bias_initializer=tf.keras.initializers.Constant(value=-np.log(99)),
+                                   activation='sigmoid')(do7)
+    return tf.keras.Model(inputs=inputs, outputs=preds)
 
 
 #####################################################################################################################
@@ -91,54 +58,64 @@ def convdlrm_init(H, W, C, Nout, nk, ks, lks, activ, init):
 
 
 def ddnet_init(H, W, C, Nout, nk, ks, lks, activ, init):
-  # Inputs
-  inputs_m = tfk.Input(shape=[None, H, W, C])
-  inputs_c = tfk.Input(shape=[H, W, C])
-  # Motion Encoder
-  x = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init))(inputs_m)
-  res1a = tfkl.Lambda(lambda x: x[:,-1])(x)
-  x = tfkl.TimeDistributed(tfkl.MaxPooling2D())(x)
-  x = tfkl.TimeDistributed(tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init))(x)
-  res2a = tfkl.Lambda(lambda x: x[:,-1])(x)
-  x = tfkl.TimeDistributed(tfkl.MaxPooling2D())(x)
-  x = tfkl.LayerNormalization()(x)
-  x = tfkl.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(x)
-  ME = tfkl.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  # Content Encoder
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(inputs_c)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  res1b = tfkl.BatchNormalization()(x)
-  x = tfkl.MaxPooling2D()(res1b)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  res2b = tfkl.BatchNormalization()(x)
-  x = tfkl.MaxPooling2D()(res2b)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  CE = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  # Combination layers
-  x = tfkl.Concatenate()([CE, ME])
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.BatchNormalization()(x)
-  # Decoder layers
-  x = tfkl.UpSampling2D()(x)
-  x = tfkl.Concatenate()([x, res2a, res2b])
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.BatchNormalization()(x)
-  x = tfkl.UpSampling2D()(x)
-  x = tfkl.Concatenate()([x, res1a, res1b])
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
-  x = tfkl.BatchNormalization()(x)
-  # Prediction
-  input_p = [x]
-  for i in range(Nout-1):
-    input_p.append(tf.zeros_like(x))
-  input_p = tf.stack(input_p, axis=1)
-  x = tfkl.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(input_p)
-  x = tfkl.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(x)
-  x = tfkl.LayerNormalization()(x)
-  preds = tfkl.Conv3D(1, lks, padding='same', activation='sigmoid', bias_initializer=tfki.Constant(value=-np.log(99)))(x)
-  return tfk.Model(inputs=[inputs_m, inputs_c], outputs=preds)
+    # Inputs
+    input_m = tf.keras.Input(shape=[None, H, W, C])
+    input_c = tf.keras.Input(shape=[H, W, C])
+    # Motion Encoder
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init))(input_m)
+    res1a = tf.keras.layers.Lambda(lambda x: x[:,-1])(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D())(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.2))(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init))(x)
+    res2a = tf.keras.layers.Lambda(lambda x: x[:,-1])(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPooling2D())(x)
+    x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.2))(x)
+    ME = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    # Content Encoder
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(input_c)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    res1b = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.MaxPooling2D()(res1b)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    res2b = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.MaxPooling2D()(res2b)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    CE = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    # Decoder
+    x = tf.keras.layers.Concatenate()([CE, ME])
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.UpSampling2D()(x)
+    x = tf.keras.layers.Concatenate()([x, res2a, res2b])
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.UpSampling2D()(x)
+    x = tf.keras.layers.Concatenate()([x, res1a, res1b])
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    x = tf.keras.layers.Conv2D(nk, ks, padding='same', activation=activ, kernel_initializer=init)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Dropout(0.2)(x)
+    # Prediction
+    x = tf.stack([x, tf.zeros_like(x), tf.zeros_like(x), tf.zeros_like(x), tf.zeros_like(x)], axis=1)
+    x = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(x)
+    x = tf.keras.layers.LayerNormalization()(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.2))(x)
+    preds = tf.keras.layers.Conv3D(1, lks, padding='same', activation='sigmoid',
+                                   bias_initializer=tf.keras.initializers.Constant(value=-np.log(99)))(x)
+    return tf.keras.Model(inputs=[input_m, input_c], outputs=preds)
+
