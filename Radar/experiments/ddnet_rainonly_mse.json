@@ -1,7 +1,7 @@
 {
   "nom_test": "ddnet_rainonly_mse",
   "archi": "ddnet",
-  "new_size": 64,
+  "new_size": [512,768],
   "batch_size": 10,
   "nb_epochs": 30,
   "loss": "masked_mse",
@@ -17,6 +17,8 @@
   "input_timeframes": 10,
   "output_timeframes": 5,
   "overlapping": 0,
+  "threshold_rain_in_regions": 300,
+  "size_regions": 64,
   "reflectivity_on": 0,
   "quality_on": 0,
   "lsm_on": 0,

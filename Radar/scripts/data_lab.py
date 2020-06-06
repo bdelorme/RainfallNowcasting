@@ -15,47 +15,54 @@ def get_data_and_features(directory, zone, years, months, parts_month, new_size,
                           input_timeframes, output_timeframes,
                           rainfall_threshold_value, features_bool, weather_model_bool,
                           model, weather_model_max_threshold, weather_model_min_threshold,
-                          features_max_threshold, features_min_threshold, overlapping_data):
-  X, y, X_dates = get_rainfall_reflectivity_quality("rainfall", rainfall_threshold_value,
-                                                    directory, years, months, parts_month, zone, new_size,
-                                                    input_timeframes, output_timeframes, overlapping_data)
+                          features_max_threshold, features_min_threshold, overlapping_data,
+                          threshold_rain_in_regions, size_regions):
+  X, y, X_dates, X_regions = get_rainfall(rainfall_threshold_value,
+                                directory, years, months, parts_month, zone, new_size,
+                                input_timeframes, output_timeframes, overlapping_data,
+                                threshold_rain_in_regions, size_regions)
   print('Got rainfall')
   features_list = []
   if features_bool['reflectivity'] == 1:
-    reflectivity = get_rainfall_reflectivity_quality("reflectivity",
-                                                     features_max_threshold['reflectivity'],
-                                                     directory, years, months, parts_month, zone,
-                                                     new_size, input_timeframes, output_timeframes,
-                                                     overlapping_data)
+    reflectivity = get_reflectivity_quality("reflectivity",
+                                            features_max_threshold['reflectivity'],
+                                            directory, years, months, parts_month, zone,
+                                            new_size, input_timeframes, output_timeframes,
+                                            overlapping_data, X_dates, X_regions,
+                                            size_regions)
     X = add_new_channel(X, reflectivity)
     features_list.append('reflectivity')
     print('Got reflectivity')
   if features_bool['rainfall quality'] == 1:
-    quality = get_rainfall_reflectivity_quality("quality",
-                                                features_max_threshold['rainfall quality'],
-                                                directory, years, months, parts_month, zone,
-                                                new_size, input_timeframes, output_timeframes,
-                                                overlapping_data)
+    quality = get_reflectivity_quality("quality",
+                                        features_max_threshold['rainfall quality'],
+                                        directory, years, months, parts_month, zone,
+                                        new_size, input_timeframes, output_timeframes,
+                                        overlapping_data, X_dates, X_regions,
+                                        size_regions)
     X = add_new_channel(X, quality)
     features_list.append('quality')
     print('Got rainfall quality')
   if features_bool['land sea'] == 1:
     lsm = get_lsm_relief_mask(directory, zone, new_size, "LAND_GDS0_SFC",
                               features_max_threshold['land sea'],
-                              features_min_threshold['land sea'])
+                              features_min_threshold['land sea'],
+                              X_regions, size_regions, input_timeframes)
     X = add_new_channel(X, lsm)
     features_list.append('land sea mask')
     print('Got land sea')
   if features_bool['elevation'] == 1:
     elevation = get_lsm_relief_mask(directory , zone, new_size, 'DIST_GDS0_SFC',
                                     features_max_threshold['elevation'],
-                                    features_min_threshold['elevation'])
+                                    features_min_threshold['elevation'],
+                                    X_regions, size_regions, input_timeframes)
     X = add_new_channel(X, elevation)
     features_list.append('elevation')
     print('Got elevation')
   if (model=='arpege') or (model=='arome'):
     model_data_dict = get_model_data(directory, zone, model, weather_model_bool, X_dates, new_size,
-                                     weather_model_max_threshold, weather_model_min_threshold)
+                                     weather_model_max_threshold, weather_model_min_threshold,
+                                     X_regions, size_regions)
     for key in model_data_dict.keys():
       X = add_new_channel(X, model_data_dict[key])
       features_list.append(key)
@@ -67,21 +74,71 @@ def get_data_and_features(directory, zone, years, months, parts_month, new_size,
 #####################################################################################################################
 
 
-def get_rainfall_reflectivity_quality(tag, max_threshold_value, directory,
+def get_rainfall(max_threshold_value, directory,
+                 years, months, parts_month, zone, new_size,
+                 input_timeframes, output_timeframes, overlapping_data,
+                 threshold_rain_in_regions, size_regions):
+  X = np.array([])
+  first_part = True
+  for year in years:
+    for month in months:
+      for part_month in parts_month:
+        fname = directory + f'rainfall_{zone}/rainfall_{zone}_{str(year)}_{str(month).zfill(2)}.{str(part_month)}.npz'
+        d = np.load(fname, allow_pickle=True)
+        if first_part == True:
+          data_temp = d['data']
+          dates_temp = d['dates']
+          first_part = False
+        else:
+          data_temp = np.concatenate((data_temp, d['data']), axis=0)
+          dates_temp = np.concatenate((dates_temp, d['dates']), axis=0)
+
+        num_of_timestep = data_temp.shape[0]
+        num_of_sequences = num_of_timestep//(input_timeframes + output_timeframes)
+        data_to_analyze = data_temp[:num_of_sequences*(input_timeframes+output_timeframes)]
+        data_temp = data_temp[num_of_sequences*(input_timeframes+output_timeframes):]
+        dates_to_analyze = dates_temp[:num_of_sequences*(input_timeframes+output_timeframes)]
+        dates_temp = dates_temp[num_of_sequences*(input_timeframes+output_timeframes):]
+
+        data_to_analyze = np.expand_dims(data_to_analyze, -1) # add channel dimension for tf handling (channel=1, ie grayscale)
+        data_to_analyze[data_to_analyze == -1] = -10000
+        # Resize the dimensions of the images to new_size
+        if len(new_size) > 0:
+          data_to_analyze = tf.image.resize(data_to_analyze, new_size)
+          data_to_analyze = np.asarray(data_to_analyze)
+        # Interpolate frame where values are missing
+        if d['miss_dates'].shape[0] != 0:
+          data_to_analyze, dates_to_analyze = interpolate_missing_data(data_to_analyze, d['miss_dates'], dates_to_analyze)
+
+        data_to_analyze = data_to_analyze/max_threshold_value # normalize between 0 and 1 (min-max scaling)
+        data_to_analyze[data_to_analyze > max_threshold_value] = 1
+        data_to_analyze[data_to_analyze < 0] = -1
+        X_to_analyze, y_to_analyze, X_dates_to_analyze, X_regions_to_analyze = multivariate_data(data_to_analyze, input_timeframes, output_timeframes, overlapping_data, dates_to_analyze, "rainfall", threshold_rain_in_regions, size_regions)
+        # Store everything in one dataset
+        if X.shape[0] == 0:
+          X = X_to_analyze
+          X_dates = X_dates_to_analyze
+          y = y_to_analyze
+          X_regions = X_regions_to_analyze
+        else:
+          X = np.vstack((X, X_to_analyze))
+          X_dates = np.concatenate([X_dates, X_dates_to_analyze])
+          y = np.vstack((y, y_to_analyze))
+          X_regions = np.vstack((X_regions, X_regions_to_analyze))
+        print("Year: {} Month: {} Part of the month: {}, Done !".format(year, month, part_month))
+  X = tf.cast(X, tf.float32)
+  y = tf.cast(y, tf.float32)
+  return X, y, X_dates, X_regions
+
+def get_reflectivity_quality(tag, max_threshold_value, directory,
                                       years, months, parts_month, zone, new_size,
-                                      input_timeframes, output_timeframes, overlapping_data):
+                                      input_timeframes, output_timeframes, overlapping_data,
+                                      rainfall_dates, rainfall_regions, size_regions):
   data = np.array([])
   for year in years:
     for month in months:
       for part_month in parts_month:
-        if tag == 'rainfall':
-          fname = directory + f'{tag}_{zone}/{tag}_{zone}_{str(year)}_{str(month).zfill(2)}.{str(part_month)}.npz'
-          d = np.load(fname, allow_pickle=True)
-          data_temp = d['data']
-          dates_temp = d['dates']
-          data_temp = np.expand_dims(data_temp, -1) # add channel dimension for tf handling (channel=1, ie grayscale)
-          data_temp[data_temp == -1] = -10000
-        elif tag == 'reflectivity':
+        if tag == 'reflectivity':
           if year == 2018 and month > 2:
             new_or_old = "new"
           else:
@@ -127,34 +184,61 @@ def get_rainfall_reflectivity_quality(tag, max_threshold_value, directory,
   data[data < 0] = -1
   # Get I/O
   X, y, X_dates = multivariate_data(data, input_timeframes, output_timeframes,
-                                    overlapping_data, dates)
-  if tag == 'rainfall':
-    X = tf.cast(X, tf.float32)
-    y = tf.cast(y, tf.float32)
-    return X, y, X_dates
-  else:
-    X = tf.cast(X, tf.float32)
-    return X
+                                    overlapping_data, dates, tag=tag)
+  X = keep_same_regions_as_rainfall_for_reflectivity_quality(X, X_dates, rainfall_dates, rainfall_regions, size_regions)
+  X = tf.cast(X, tf.float32)
+  return X
 
-def multivariate_data(dataset, input_timeframes, output_timeframes, overlapping_data, dates):
+def multivariate_data(dataset, input_timeframes, output_timeframes, overlapping_data, dates, tag, threshold_rain_in_regions=100,
+                      size_regions=64):
   X = []
   y = []
   X_dates = []
+
   if overlapping_data == 0:
     step = input_timeframes + output_timeframes
   else:
     step = 1
+
   for i in range(0, dataset.shape[0]-(input_timeframes + output_timeframes), step):
     indices_X = range(i, i + input_timeframes)
     indices_y = range(i + input_timeframes, i + input_timeframes + output_timeframes)
     X.append(dataset[indices_X])
     X_dates.append(dates[indices_X])
     y.append(dataset[indices_y])
+
   X = np.array(X)
   X_dates = np.array(X_dates)
   y = np.array(y)
+
+  if tag == "rainfall":
+    X, y, X_dates, X_regions = keep_rainy_regions(X, X_dates, y, threshold_rain_in_regions, size_regions)
+    return X, y, X_dates, X_regions
   return X, y, X_dates
 
+def keep_rainy_regions(X, X_dates, y, threshold, size_regions):
+  X = tf.cast(X, tf.float32)
+  N, T, H, W, C = X.shape
+  filters = np.ones([T, size_regions, size_regions, C, 1])
+  total_rain = tf.nn.conv3d(X, filters, strides=(1,T,size_regions, size_regions,1), padding='VALID')
+  regions_to_keep = tf.where(total_rain>threshold)
+  X_numpy = X.numpy()
+  X_new_regions = np.zeros([regions_to_keep.shape[0], T, size_regions, size_regions, C])
+  y_new_regions = np.zeros([regions_to_keep.shape[0], y.shape[1], size_regions, size_regions, y.shape[4]])
+  for i in range(regions_to_keep.shape[0]):
+    X_new_regions[i] = X_numpy[regions_to_keep[i, 0], :, size_regions*regions_to_keep[i, 2]:size_regions*(regions_to_keep[i, 2]+1), size_regions*regions_to_keep[i, 3]:size_regions*(regions_to_keep[i, 3]+1), :]
+    y_new_regions[i] = y[regions_to_keep[i, 0], :, size_regions*regions_to_keep[i, 2]:size_regions*(regions_to_keep[i, 2]+1), size_regions*regions_to_keep[i, 3]:size_regions*(regions_to_keep[i, 3]+1), :]
+  X_new_regions_dates = X_dates[regions_to_keep[:,0]]
+  X_new_regions_regions = regions_to_keep[:, 2:4]
+  
+  return X_new_regions, y_new_regions, X_new_regions_dates, X_new_regions_regions
+
+def keep_same_regions_as_rainfall_for_reflectivity_quality(X, X_dates, rainfall_dates, rainfall_regions, size_regions):
+  new_X = np.zeros([rainfall_dates.shape[0], X.shape[1], size_regions, size_regions, X.shape[4]])
+  for i in range(rainfall_dates.shape[0]):
+    idx = np.where(rainfall_dates[i,0] == X_dates[:,0])[0]
+    new_X[i] = X[idx, :, size_regions*rainfall_regions[i,0]: size_regions*(rainfall_regions[i,0] + 1), size_regions*rainfall_regions[i,1]: size_regions*(rainfall_regions[i,1] + 1), :]
+  return new_X
 
 #####################################################################################################################
 #####################################################################################################################
@@ -168,7 +252,7 @@ def get_content_data(X):
 #####################################################################################################################
 
 
-def get_lsm_relief_mask(directory, zone, new_size, mask_name, max_threshold, min_threshold):
+def get_lsm_relief_mask(directory, zone, new_size, mask_name, max_threshold, min_threshold, rainfall_regions, size_regions, input_timeframes):
   fname = directory + f'masks_{zone}.nc'
   data = xr.open_dataset(fname)
   lsm_mask = data[mask_name].values
@@ -176,8 +260,15 @@ def get_lsm_relief_mask(directory, zone, new_size, mask_name, max_threshold, min
   lsm_mask = np.expand_dims(lsm_mask, -1)
   if len(new_size) > 0:
           lsm_mask = tf.image.resize(lsm_mask, new_size)
+  lsm_mask = convert_mask_to_rainfall_size(lsm_mask, rainfall_regions, size_regions, input_timeframes)
   lsm_mask = tf.cast(lsm_mask, tf.float32)
   return lsm_mask
+
+def convert_mask_to_rainfall_size(lsm_mask, rainfall_regions, size_regions, input_timeframes):
+  new_lsm_mask = np.zeros([rainfall_regions.shape[0], input_timeframes, size_regions, size_regions, lsm_mask.shape[2]])
+  for i in range(rainfall_regions.shape[0]):
+    new_lsm_mask[i] = np.tile(lsm_mask[size_regions*rainfall_regions[i,0]:size_regions*(rainfall_regions[i,0]+1), size_regions*rainfall_regions[i,1]:size_regions*(rainfall_regions[i,1]+1), :], (input_timeframes, 1, 1, 1))
+  return new_lsm_mask
 
 
 #####################################################################################################################
@@ -200,7 +291,8 @@ def split_train_test(percentage_test, X, y):
 
 
 def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, size,
-                   weather_model_max_threshold, weather_model_min_threshold):
+                   weather_model_max_threshold, weather_model_min_threshold, rainfall_regions,
+                   size_regions):
   N, T = X_dates.shape
   H, W = size
   model_data_dict = {}
@@ -240,6 +332,12 @@ def get_model_data(directory_dataset, zone, model, weather_model_bool, X_dates, 
     del model_data_dict['wind components 1']
     del model_data_dict['wind components 2']
   for i in model_data_dict.keys():
+    print(rainfall_regions.shape)
+    print(model_data_dict[i].shape)
+    new_model_data = np.zeros([model_data_dict[i].shape[0], model_data_dict[i].shape[1], size_regions, size_regions, model_data_dict[i].shape[4]])
+    for j in range(rainfall_regions.shape[0]):
+      new_model_data[j] = model_data_dict[i][j, :, size_regions*rainfall_regions[j,0]:size_regions*(rainfall_regions[j,0]+1), size_regions*rainfall_regions[j,1]:size_regions*(rainfall_regions[j,1] + 1), :]
+    model_data_dict[i] = new_model_data
     model_data_dict[i] -= weather_model_min_threshold[i]
     model_data_dict[i] /= weather_model_max_threshold[i]
     model_data_dict[i] = tf.cast(model_data_dict[i], tf.float32)
