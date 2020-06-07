@@ -19,6 +19,7 @@ from models import *
 from metrics import *
 from plot_tools import *
 
+
 #########################################################################################
 ################################## READ JSON EXP FILE ###################################
 #########################################################################################
@@ -32,8 +33,8 @@ param = json.load(args.param_file.open())
 ################################## EXPERIMENT FEATURES ##################################
 #########################################################################################
 nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
-archi = nom_test.split('_')[0]                              # NETWORK ARCHITECTURE
-new_size = param['new_size']    # SIZE DATA (None = keep initial size)
+archi = nom_test.split('_')[0]                      # NETWORK ARCHITECTURE
+new_size = param['new_size']                        # SIZE DATA
 bs = param['batch_size']                            # BATCH SIZE
 ep = param['nb_epochs']                             # NB EPOCHS
 
@@ -59,12 +60,10 @@ init = param['weights_initialization']
 #########################################################################################
 ################################## CALLBACKS & METRICS ##################################
 #########################################################################################
-csv_logger = tf.keras.callbacks.CSVLogger('models/'+archi+'_'+nom_test+'_train.csv')
+csv_logger = tf.keras.callbacks.CSVLogger('models/'+nom_test+'_train.csv')
 term_nan = tf.keras.callbacks.TerminateOnNaN()
 early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_masked_BMW', patience=5, mode='max', restore_best_weights=True)
 callbacks_list = [term_nan, csv_logger, early_stopping]
-#reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_masked_BMW', patience=4, factor=0.5, mode='max')
-#callbacks_list = [term_nan, reduce_lr, csv_logger, early_stopping]
 #
 metrics_list = [masked_acc, masked_ssim, masked_psnr, masked_cor, masked_prec, masked_recall, masked_BMW]
 
