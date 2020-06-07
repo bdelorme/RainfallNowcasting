@@ -9,11 +9,10 @@ plt.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 20
 plt.rcParams['lines.linewidth'] = 3
 
-def plot_history(history, results, nom_test, save=False, foldername=''):
+def plot_history(history, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['loss'], label='Train')
   plt.plot(history.history['val_loss'], label='Val')
-  plt.axhline(results['loss'], linestyle='--', color='k', label='Test')
   plt.ylabel('loss')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -24,7 +23,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_prec'], label='Train')
   plt.plot(history.history['val_masked_prec'], label='Val')
-  plt.axhline(results['masked_prec'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_prec')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -35,7 +33,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_recall'], label='Train')
   plt.plot(history.history['val_masked_recall'], label='Val')
-  plt.axhline(results['masked_recall'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_recall')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -46,7 +43,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_cor'], label='Train')
   plt.plot(history.history['val_masked_cor'], label='Val')
-  plt.axhline(results['masked_cor'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_cor')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -57,7 +53,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_acc'], label='Train')
   plt.plot(history.history['val_masked_acc'], label='Val')
-  plt.axhline(results['masked_acc'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_acc')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -68,7 +63,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_ssim'], label='Train')
   plt.plot(history.history['val_masked_ssim'], label='Val')
-  plt.axhline(results['masked_ssim'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_ssim')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -79,7 +73,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_psnr'], label='Train')
   plt.plot(history.history['val_masked_psnr'], label='Val')
-  plt.axhline(results['masked_psnr'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_psnr')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -90,7 +83,6 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
   plt.figure(figsize=(12,6))
   plt.plot(history.history['masked_BMW'], label='Train')
   plt.plot(history.history['val_masked_BMW'], label='Val')
-  plt.axhline(results['masked_BMW'], linestyle='--', color='k', label='Test')
   plt.ylabel('masked_BMW')
   plt.xlabel('epoch')
   plt.legend(loc='upper left')
@@ -107,7 +99,7 @@ def plot_history(history, results, nom_test, save=False, foldername=''):
 
 
 def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
-               lat, lon, nom_test, tag, save=False, foldername=''):
+               lat, lon, nom_test, archi, tag, save=False, foldername=''):
   #
   if len(new_size) > 0:
           lat = tf.image.resize(lat[:,:,None], new_size)
@@ -125,22 +117,24 @@ def plot_track(true_track, track, threshold_value, new_size, Ninput, Noutput,
   true_track = true_track*threshold_value
   #
   for i in range(Ninput+Noutput):
-      plt.figure(figsize=(15, 8))
-      plt.subplot(121)
+      plt.figure(figsize=(7,10))
       if i >= Ninput:
-          plt.text(-5.7, 46.4, 'Prediction', color='k')
+          plt.text(-5.7, 46.4, archi, color='k')
       else:
           plt.text(-5.7, 46.4, 'Initial trajectory', color='k')
       plt.pcolormesh(lon, lat, track[0, i, :, :, 0], cmap=cmap, norm=norm)
       plt.xlabel('$x$ [$^{\circ}E$]')
       plt.ylabel('$y$ [$^{\circ}N$]')
-      plt.subplot(122)
+      if save == True:
+          plt.savefig(foldername+nom_test+'_'+tag+'_pred_%i.png' % (i+1))
+          plt.close()
+      plt.figure(figsize=(7,10))
       plt.text(-5.7, 46.4, 'Ground truth', color='k')
       plt.pcolormesh(lon, lat, true_track[i, :, :, 0], cmap=cmap, norm=norm)
       plt.xlabel('$x$ [$^{\circ}E$]')
       plt.ylabel('$y$ [$^{\circ}N$]')
-      plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds,
-                   orientation= 'vertical').set_label('Rainfall [1/100 mm]')
+      #plt.colorbar(cmap=cmap, norm=norm, boundaries=bounds, ticks=bounds,
+      #             orientation= 'vertical').set_label('Rainfall [1/100 mm]')
       if save == True:
-          plt.savefig(foldername+nom_test+'_'+tag+'_%i.png' % (i+1))
+          plt.savefig(foldername+nom_test+'_'+tag+'_gt_%i.png' % (i+1))
           plt.close()

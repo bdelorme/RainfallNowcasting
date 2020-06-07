@@ -2,9 +2,7 @@ import os
 FOLDERNAME = os.getcwd()+'/'
 print('FOLDERNAME=' + FOLDERNAME)
 #
-import numpy as np
 import tensorflow as tf
-import csv
 #
 from pathlib import Path
 import argparse
@@ -78,7 +76,7 @@ parts_month = param['parts_month']    # 1,2,3 (each month is divided in 3 parts)
 input_timeframes = param['input_timeframes']                   # how many timeframes for input
 output_timeframes = param['output_timeframes']                 # how many timeframes for output
 overlapping_data = param['overlapping']                        # data overlap in time (= 1) or not (= 0)
-fraction_test = 0.1                   # fraction of test data
+fraction_test = 0.                    # fraction of test data
 rainfall_threshold_value = 40.        # Value above which values are considered to be one
 size_regions = param['size_regions']
 threshold_rain_in_regions = param['threshold_rain_in_regions']
@@ -94,7 +92,7 @@ features_bool = {'reflectivity': param['reflectivity_on'],
 features_max_threshold = {'reflectivity': 60,
                           'rainfall quality': 100,
                           'land sea': 1,
-                          'elevation': 629}
+                          'elevation': 600}
 features_min_threshold = {'reflectivity': 0,
                           'rainfall quality': 0,
                           'land sea': 0,
@@ -125,9 +123,6 @@ weather_model_min_threshold = {'temperature': 268,
                                'wind components': -30,
                                'pressure': 96000,
                                'precipitation': 0}
-#########################################################################################
-#########################################################################################
-#########################################################################################
 
 
 #########################################################################################
@@ -156,8 +151,6 @@ if archi=='ddnet':
 N, T, H, W, C = X.shape
 
 
-
-
 #########################################################################################
 ###################################### INIT MODEL #######################################
 #########################################################################################
@@ -169,6 +162,7 @@ model.compile(optimizer=optimizer,
               loss=loss,
               metrics=metrics_list)
 
+
 #########################################################################################
 ####################################### RUN MODEL #######################################
 #########################################################################################
@@ -178,63 +172,18 @@ if archi=='convdlrm':
                         epochs=ep,
                         callbacks=callbacks_list,
                         validation_split=0.1)
-    results = model.evaluate(X_test, y_test, batch_size=bs, return_dict=True)
 elif archi=='ddnet':
     history = model.fit([X, X_content], y,
                         batch_size=bs,
                         epochs=ep,
                         callbacks=callbacks_list,
                         validation_split=0.1)
-    results = model.evaluate([X_test, X_content_test], y_test, batch_size=bs, return_dict=True)
-
-
-#########################################################################################
-###################################### SAVE MODEL #######################################
-#########################################################################################
 model.save('models/'+nom_test+'.h5')
-with open('models/'+nom_test+'_test.csv', 'w') as f:
-    w = csv.DictWriter(f, results.keys())
-    w.writeheader()
-    w.writerow(results)
-
 
 
 #########################################################################################
 ######################################### PLOT ##########################################
 #########################################################################################
-# 1- History
-foldername = FOLDERNAME+'plots/'
-plot_history(history, results, nom_test, save=True, foldername=foldername)
-
-# 2- Train Example
-itest = np.argmax(np.sum(X[:,:,:,:,0], axis=(1,2,3)))
-track = tf.expand_dims(X[itest,:,:,:,0], axis=-1)
-true_track = np.concatenate((track, y[itest]), axis=0)
-if archi == 'convdlrm':
-    track = np.concatenate((track[None,:,:,:,:], model.predict(X[itest][None,:,:,:,:])), axis=1)
-elif archi == 'ddnet':
-    track_m = X[itest]
-    track_c = X_content[itest]
-    track = np.concatenate((track[None,:,:,:,:], model.predict([track_m[None,:,:,:,:], track_c[None,:,:,:]])), axis=1)
-lat, lon = get_coords(data_dir, zone)
-plot_track(true_track, track, rainfall_threshold_value,
-           [size_regions, size_regions], input_timeframes, output_timeframes,
-           lat, lon, nom_test, tag='train',
-           save=True, foldername=foldername)
-
-# 3- Test Example
-itest = np.argmax(np.sum(X_test[:,:,:,:,0], axis=(1,2,3)))
-track = tf.expand_dims(X_test[itest,:,:,:,0], axis=-1)
-true_track = np.concatenate((track, y_test[itest]), axis=0)
-if archi == 'convdlrm':
-    track = np.concatenate((track[None,:,:,:,:], model.predict(X_test[itest][None,:,:,:,:])), axis=1)
-elif archi == 'ddnet':
-    track_m = X_test[itest]
-    track_c = X_content_test[itest]
-    track = np.concatenate((track[None,:,:,:,:], model.predict([track_m[None,:,:,:,:], track_c[None,:,:,:]])), axis=1)
-lat, lon = get_coords(data_dir, zone)
-plot_track(true_track, track, rainfall_threshold_value,
-           [size_regions, size_regions], input_timeframes, output_timeframes,
-           lat, lon, nom_test, tag='test',
-           save=True, foldername=foldername)
+foldername = FOLDERNAME+'history/'
+plot_history(history, nom_test, save=True, foldername=foldername)
 

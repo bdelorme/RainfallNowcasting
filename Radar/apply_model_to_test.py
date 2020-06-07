@@ -40,20 +40,14 @@ nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
 archi = param['archi']                              # NETWORK ARCHITECTURE
 new_size = param['new_size']                        # SIZE DATA
 bs = param['batch_size']                            # BATCH SIZE
-
-
-#########################################################################################
-##################################### DATA FEATURES #####################################
-#########################################################################################
-zone = "NW"                           # NW, SE
-years = [int(args.nargs[2])]                 # 2016, 2017, 2018
-months = [int(args.nargs[3])]              # 1..12
-parts_month = [1,2,3]    # 1,2,3 (each month is divided in 3 parts)
+zone = "NW"                                         # NW, SE
+years = [int(args.nargs[2])]                        # 2016, 2017, 2018
+months = [int(args.nargs[3])]                       # 1..12
+parts_month = [1,2,3]                               # 1,2,3 (each month is divided in 3 parts)
 input_timeframes = param['input_timeframes']                   # how many timeframes for input
 output_timeframes = param['output_timeframes']                 # how many timeframes for output
 overlapping_data = param['overlapping']                        # data overlap in time (= 1) or not (= 0)
-fraction_test = 0.1                   # fraction of test data
-rainfall_threshold_value = 80.        # Value above which values are considered to be one
+rainfall_threshold_value = 40.                                 # Value above which values are considered to be one
 size_regions = param["size_regions"]
 threshold_rain_in_regions = param["threshold_rain_in_regions"]
 #
@@ -64,7 +58,7 @@ features_bool = {'reflectivity': param['reflectivity_on'],
 features_max_threshold = {'reflectivity': 60,
                           'rainfall quality': 100,
                           'land sea': 1,
-                          'elevation': 629}
+                          'elevation': 600}
 features_min_threshold = {'reflectivity': 0,
                           'rainfall quality': 0,
                           'land sea': 0,
@@ -79,20 +73,20 @@ weather_model_bool = {'temperature': param['temperature_on'],
                       'wind components': param['wind_comp_on'],
                       'pressure': param['pressure_on'],
                       'precipitation': param['precip_on']}
-weather_model_max_threshold = {'temperature': 313,
-                               'dew point temperature' : 313,
+weather_model_max_threshold = {'temperature': 308,
+                               'dew point temperature' : 308,
                                'humidity': 100,
-                               'wind speed': 35,
+                               'wind speed': 30,
                                'wind directions': 360,
-                               'wind components': 35,
+                               'wind components': 30,
                                'pressure': 105000,
                                'precipitation': rainfall_threshold_value}
-weather_model_min_threshold = {'temperature': 263,
-                               'dew point temperature' : 263,
+weather_model_min_threshold = {'temperature': 268,
+                               'dew point temperature' : 268,
                                'humidity': 0,
                                'wind speed': 0,
                                'wind directions': 0,
-                               'wind components': -35,
+                               'wind components': -30,
                                'pressure': 96000,
                                'precipitation': 0}
 
@@ -146,7 +140,7 @@ with open('models/'+nom_test+'_new_test.csv', 'w') as f:
 ####################################### PLOT TEST #######################################
 #########################################################################################
 foldername = FOLDERNAME+'plots/'
-for itest in range(nb_test):
+for itest in range(0, 100*nb_test, 100):
     track = tf.expand_dims(X[itest,:,:,:,0], axis=-1)
     true_track = np.concatenate((track, y[itest]), axis=0)
     if archi == 'convdlrm':
@@ -158,6 +152,6 @@ for itest in range(nb_test):
     lat, lon = get_coords(data_dir, zone)
     plot_track(true_track, track, rainfall_threshold_value,
                [size_regions,size_regions], input_timeframes, output_timeframes,
-               lat, lon, nom_test, tag='test_'+str(itest),
+               lat, lon, nom_test, archi, tag='test_'+str(itest),
                save=True, foldername=foldername)
 

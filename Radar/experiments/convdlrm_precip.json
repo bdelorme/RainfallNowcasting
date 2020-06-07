@@ -1,7 +1,7 @@
 {
   "nom_test": "convdlrm_precip",
   "archi": "convdlrm",
-  "new_size": [512, 768],
+  "new_size": [192,256],
   "batch_size": 10,
   "nb_epochs": 30,
   "loss": "masked_logcosh",
@@ -17,7 +17,7 @@
   "input_timeframes": 10,
   "output_timeframes": 5,
   "overlapping": 0,
-  "threshold_rain_in_regions": 7500,
+  "threshold_rain_in_regions": 1000,
   "size_regions": 64,
   "reflectivity_on": 0,
   "quality_on": 0,

@@ -23,7 +23,10 @@ def convdlrm_init(H, W, C, Nout, nk, ks, lks, activ, init):
                                                    return_state=True)(do2)
     # Decoder
     do3 = tf.keras.layers.Dropout(0.7)(CL1)
-    input_dec = tf.stack([do3, tf.zeros_like(do3), tf.zeros_like(do3), tf.zeros_like(do3), tf.zeros_like(do3)], axis=1)
+    input_dec = [do3]
+    for i in range(Nout-1):
+        input_dec.append(tf.zeros_like(do3))
+    input_dec = tf.stack(input_dec, axis=1)
     CL2 = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same',
                                      activation=activ, kernel_initializer=init,
                                      return_sequences=True)(input_dec,
@@ -104,8 +107,11 @@ def ddnet_init(H, W, C, Nout, nk, ks, lks, activ, init):
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dropout(0.2)(x)
     # Prediction
-    x = tf.stack([x, tf.zeros_like(x), tf.zeros_like(x), tf.zeros_like(x), tf.zeros_like(x)], axis=1)
-    x = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(x)
+    input_p = [x]
+    for i in range(Nout-1):
+        input_p.append(tf.zeros_like(x))
+    input_p = tf.stack(input_p, axis=1)
+    x = tf.keras.layers.ConvLSTM2D(nk, ks, padding='same', activation=activ, kernel_initializer=init, return_sequences=True)(input_p)
     x = tf.keras.layers.LayerNormalization()(x)
     x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.2))(x)
     preds = tf.keras.layers.Conv3D(1, lks, padding='same', activation='sigmoid',
