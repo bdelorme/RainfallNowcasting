@@ -17,7 +17,7 @@
   "input_timeframes": 10,
   "output_timeframes": 5,
   "overlapping": 0,
-  "threshold_rain_in_regions": 300,
+  "threshold_rain_in_regions": 5000,
   "size_regions": 64,
   "reflectivity_on": 0,
   "quality_on": 0,

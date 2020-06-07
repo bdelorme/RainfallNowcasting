@@ -222,6 +222,7 @@ def keep_rainy_regions(X, X_dates, y, threshold, size_regions):
   filters = np.ones([T, size_regions, size_regions, C, 1])
   total_rain = tf.nn.conv3d(X, filters, strides=(1,T,size_regions, size_regions,1), padding='VALID')
   regions_to_keep = tf.where(total_rain>threshold)
+  regions_to_keep = regions_to_keep.numpy()
   X_numpy = X.numpy()
   X_new_regions = np.zeros([regions_to_keep.shape[0], T, size_regions, size_regions, C])
   y_new_regions = np.zeros([regions_to_keep.shape[0], y.shape[1], size_regions, size_regions, y.shape[4]])
