@@ -1,14 +1,10 @@
 import os
 FOLDERNAME = os.getcwd()+'/'
-print('FOLDERNAME=' + FOLDERNAME)
+print('FOLDERNAME =' + FOLDERNAME)
 #
 import numpy as np
 import tensorflow as tf
 import csv
-#
-from pathlib import Path
-import argparse
-import json
 #
 import sys
 sys.path.append(FOLDERNAME+'scripts/')
@@ -19,111 +15,101 @@ from models import *
 from metrics import *
 from plot_tools import *
 
-#########################################################################################
-################################## READ JSON EXP FILE ###################################
-#########################################################################################
-parser = argparse.ArgumentParser()
-parser.add_argument('param_file', type=Path)
-args = parser.parse_args()
-param = json.load(args.param_file.open())
-
 
 #########################################################################################
 ################################## EXPERIMENT FEATURES ##################################
 #########################################################################################
-nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
-archi = nom_test.split('_')[0]                              # NETWORK ARCHITECTURE
-new_size = param['new_size']    # SIZE DATA (None = keep initial size)
-bs = param['batch_size']                            # BATCH SIZE
-ep = param['nb_epochs']                             # NB EPOCHS
+nom_test = 'rainfall_only'      # NAME OF THE CURRENT TEST
+archi = 'ddnet'                 # NETWORK ARCHITECTURE
+new_size = [64,64]              # SIZE DATA (None = keep initial size)
+bs = 20                         # BATCH SIZE
+ep = 30                         # NB EPOCHS
 
 
 #########################################################################################
 #################################### NETWORK FEATURES ###################################
 #########################################################################################
-loss = param['loss']
-if loss=='masked_logcosh':
-    loss=masked_logcosh
-elif loss=='masked_mae':
-    loss=masked_mae
-elif loss=='masked_mse':
-    loss=masked_mse
-optimizer = tf.keras.optimizers.Adam(lr=param['learning_rate'])
-nk = param['nb_filters']
-ks = param['filter_size']
-lks = param['last_filter_size']
-activ = param['activation']
-init = param['weights_initialization']
-
-
+loss = 'logcosh'
+optimizer = tf.keras.optimizers.Adam(lr=1e-4)
+nk = 128
+ks = 5
+lks = 3
+if archi=='convdlrm':
+    activ = 'selu'
+    init = 'lecun_normal'
+elif archi=='ddnet':
+    activ = 'relu'
+    init = 'he_normal'
+    
+    
 #########################################################################################
 ################################## CALLBACKS & METRICS ##################################
 #########################################################################################
 csv_logger = tf.keras.callbacks.CSVLogger('models/'+archi+'_'+nom_test+'_train.csv')
 term_nan = tf.keras.callbacks.TerminateOnNaN()
-early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_masked_BMW', patience=5, mode='max', restore_best_weights=True)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)
 callbacks_list = [term_nan, csv_logger, early_stopping]
-#reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_masked_BMW', patience=4, factor=0.5, mode='max')
+#reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', patience=3, factor=0.5)
 #callbacks_list = [term_nan, reduce_lr, csv_logger, early_stopping]
 #
-metrics_list = [masked_acc, masked_ssim, masked_psnr, masked_cor, masked_prec, masked_recall, masked_BMW]
+metrics_list = ['acc', ssim, psnr, cor,
+                tf.keras.metrics.Precision(name='prec'),
+                tf.keras.metrics.Recall(name='recall')]   
 
-
+    
 #########################################################################################
 #################################### GLOBAL FEATURES ####################################
 #########################################################################################
 zone = "NW"                           # NW, SE
-years = param['years']                # 2016, 2017, 2018
-months = param['months']              # 1..12
-parts_month = param['parts_month']    # 1,2,3 (each month is divided in 3 parts)
-input_timeframes = param['input_timeframes']                   # how many timeframes for input
-output_timeframes = param['output_timeframes']                 # how many timeframes for output
-overlapping_data = param['overlapping']                        # data overlap in time (= 1) or not (= 0)
+years = [2017]                        # 2016, 2017, 2018
+months = [5,6,7, 8]                          # 1...12
+parts_month = [1,2,3]                     # 1,2,3 (each month is divided in 3 parts)
+input_timeframes = 10                 # how many timeframes for input
+output_timeframes = 5                 # how many timeframes for output
+overlapping_data = 0                  # data overlap in time (= 1) or not (= 0)
 fraction_test = 0.1                   # fraction of test data
-rainfall_threshold_value = 40.        # Value above which values are considered to be one
-size_regions = param['size_regions']
-threshold_rain_in_regions = param['threshold_rain_in_regions']
+rainfall_threshold_value = 80         # Value above which values are considered to be one
 
 
 #########################################################################################
 ################################## ADDITIONAL FEATURES ##################################
 #########################################################################################
-features_bool = {'reflectivity': param['reflectivity_on'],
-                 'rainfall quality': param['quality_on'],
-                 'land sea': param['lsm_on'],
-                 'elevation': param['relief_on']}
-features_max_threshold = {'reflectivity': 60,
-                          'rainfall quality': 100,
-                          'land sea': 1,
+features_bool = {'reflectivity': 0, 
+                 'rainfall quality': 0,
+                 'land sea': 0, 
+                 'elevation': 0}
+features_max_threshold = {'reflectivity': 60, 
+                          'rainfall quality': 100, 
+                          'land sea': 1, 
                           'elevation': 629}
-features_min_threshold = {'reflectivity': 0,
-                          'rainfall quality': 0,
-                          'land sea': 0,
+features_min_threshold = {'reflectivity': 0, 
+                          'rainfall quality': 0, 
+                          'land sea': 0, 
                           'elevation': 0}
 #
-wf_model = 'arpege' # None for no model, otherwise arpege
-weather_model_bool = {'temperature': param['temperature_on'],
-                      'dew point temperature' : param['dew_temp_on'],
-                      'humidity': param['humidity_on'],
-                      'wind speed': param['wind_speed_on'],
-                      'wind directions': param['wind_dir_on'],
-                      'wind components': param['wind_comp_on'],
-                      'pressure': param['pressure_on'],
-                      'precipitation': param['precip_on']}
-weather_model_max_threshold = {'temperature': 308,
-                               'dew point temperature' : 308,
-                               'humidity': 100,
-                               'wind speed': 30,
+wf_model = None # None for no model, otherwise arpege
+weather_model_bool = {'temperature': 1, 
+                      'dew point temperature' : 1,
+                      'humidity': 1, 
+                      'wind speed': 1, 
+                      'wind directions': 1,
+                      'wind components': 1, 
+                      'pressure': 1,
+                      'precipitation': 1}
+weather_model_max_threshold = {'temperature': 313, 
+                               'dew point temperature' : 313,
+                               'humidity': 100, 
+                               'wind speed': 35, 
                                'wind directions': 360,
-                               'wind components': 30,
+                               'wind components': 35, 
                                'pressure': 105000,
                                'precipitation': rainfall_threshold_value}
-weather_model_min_threshold = {'temperature': 268,
-                               'dew point temperature' : 268,
-                               'humidity': 0,
-                               'wind speed': 0,
+weather_model_min_threshold = {'temperature': 263, 
+                               'dew point temperature' : 263,
+                               'humidity': 0, 
+                               'wind speed': 0, 
                                'wind directions': 0,
-                               'wind components': -30,
+                               'wind components': -35, 
                                'pressure': 96000,
                                'precipitation': 0}
 #########################################################################################
@@ -135,14 +121,13 @@ weather_model_min_threshold = {'temperature': 268,
 ####################################### MAKE DATA #######################################
 #########################################################################################
 data_dir = FOLDERNAME+'MeteoNet/'
-X, y, features_list = get_data_and_features(data_dir, zone, years, months, parts_month,
+X, y, features_list = get_data_and_features(data_dir, zone, years, months, parts_month, 
                                             new_size, input_timeframes, output_timeframes,
-                                            rainfall_threshold_value,
+                                            fraction_test, rainfall_threshold_value, 
                                             features_bool, weather_model_bool, wf_model,
                                             weather_model_max_threshold, weather_model_min_threshold,
                                             features_max_threshold, features_min_threshold,
-                                            overlapping_data, threshold_rain_in_regions,
-                                            size_regions)
+                                            overlapping_data)
 print('X shape = ({0}, {1}, {2}, {3}, {4})'.format(X.shape[0],X.shape[1],X.shape[2],X.shape[3],X.shape[4]))
 print('y shape = ({0}, {1}, {2}, {3}, {4})'.format(y.shape[0],y.shape[1],y.shape[2],y.shape[3],y.shape[4]))
 print('Additional features: [%s]' % ', '.join(features_list))
@@ -174,15 +159,15 @@ model.compile(optimizer=optimizer,
 ####################################### RUN MODEL #######################################
 #########################################################################################
 if archi=='convdlrm':
-    history = model.fit(X, y,
-                        batch_size=bs,
+    history = model.fit(X, y, 
+                        batch_size=bs, 
                         epochs=ep,
                         callbacks=callbacks_list,
                         validation_split=0.1)
     results = model.evaluate(X_test, y_test, batch_size=bs, return_dict=True)
 elif archi=='ddnet':
-    history = model.fit([X, X_content], y,
-                        batch_size=bs,
+    history = model.fit([X, X_content], y, 
+                        batch_size=bs, 
                         epochs=ep,
                         callbacks=callbacks_list,
                         validation_split=0.1)
@@ -192,8 +177,8 @@ elif archi=='ddnet':
 #########################################################################################
 ###################################### SAVE MODEL #######################################
 #########################################################################################
-model.save('models/'+nom_test+'.h5')
-with open('models/'+nom_test+'_test.csv', 'w') as f:
+model.save('models/'+archi+'_'+nom_test+'.h5')
+with open('models/'+archi+'_'+nom_test+'_test.csv', 'w') as f:
     w = csv.DictWriter(f, results.keys())
     w.writeheader()
     w.writerow(results)
@@ -205,10 +190,10 @@ with open('models/'+nom_test+'_test.csv', 'w') as f:
 #########################################################################################
 # 1- History
 foldername = FOLDERNAME+'plots/'
-plot_history(history, results, nom_test, save=True, foldername=foldername)
+plot_history(history, results, archi, nom_test, save=True, foldername=foldername)
 
 # 2- Train Example
-itest = np.argmax(np.sum(X[:,:,:,:,0], axis=(1,2,3)))
+itest = 3
 track = tf.expand_dims(X[itest,:,:,:,0], axis=-1)
 true_track = np.concatenate((track, y[itest]), axis=0)
 if archi == 'convdlrm':
@@ -218,13 +203,13 @@ elif archi == 'ddnet':
     track_c = X_content[itest]
     track = np.concatenate((track[None,:,:,:,:], model.predict([track_m[None,:,:,:,:], track_c[None,:,:,:]])), axis=1)
 lat, lon = get_coords(data_dir, zone)
-plot_track(true_track, track, rainfall_threshold_value,
-           [size_regions, size_regions], input_timeframes, output_timeframes,
-           lat, lon, nom_test, tag='train',
+plot_track(true_track, track, rainfall_threshold_value, 
+           new_size, input_timeframes, output_timeframes, 
+           lat, lon, archi, nom_test, tag='train', 
            save=True, foldername=foldername)
 
 # 3- Test Example
-itest = np.argmax(np.sum(X_test[:,:,:,:,0], axis=(1,2,3)))
+itest = 3
 track = tf.expand_dims(X_test[itest,:,:,:,0], axis=-1)
 true_track = np.concatenate((track, y_test[itest]), axis=0)
 if archi == 'convdlrm':
@@ -234,8 +219,8 @@ elif archi == 'ddnet':
     track_c = X_content_test[itest]
     track = np.concatenate((track[None,:,:,:,:], model.predict([track_m[None,:,:,:,:], track_c[None,:,:,:]])), axis=1)
 lat, lon = get_coords(data_dir, zone)
-plot_track(true_track, track, rainfall_threshold_value,
-           [size_regions, size_regions], input_timeframes, output_timeframes,
-           lat, lon, nom_test, tag='test',
+plot_track(true_track, track, rainfall_threshold_value, 
+           new_size, input_timeframes, output_timeframes, 
+           lat, lon, archi, nom_test, tag='train', 
            save=True, foldername=foldername)
 
