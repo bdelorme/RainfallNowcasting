@@ -34,7 +34,7 @@ param = json.load(Path(args.nargs[0]).open())
 nb_test = int(args.nargs[1])
 nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
 archi = nom_test.split('_')[0]                              # NETWORK ARCHITECTURE
-new_size = [param['new_size'],param['new_size']]    # SIZE DATA (None = keep initial size)
+new_size = param['new_size']    # SIZE DATA (None = keep initial size)
 bs = param['batch_size']                            # BATCH SIZE
 
 
@@ -50,6 +50,8 @@ output_timeframes = param['output_timeframes']                 # how many timefr
 overlapping_data = param['overlapping']                        # data overlap in time (= 1) or not (= 0)
 fraction_test = 0.1                   # fraction of test data
 rainfall_threshold_value = 80.        # Value above which values are considered to be one
+size_regions = param["size_regions"]
+threshold_rain_in_regions = param["threshold_rain_in_regions"]
 #
 features_bool = {'reflectivity': param['reflectivity_on'],
                  'rainfall quality': param['quality_on'],
@@ -101,7 +103,8 @@ X, y, features_list = get_data_and_features(data_dir, zone, years, months, parts
                                             features_bool, weather_model_bool, wf_model,
                                             weather_model_max_threshold, weather_model_min_threshold,
                                             features_max_threshold, features_min_threshold,
-                                            overlapping_data)
+                                            overlapping_data, threshold_rain_in_regions,
+                                            size_regions)
 print('X shape = ({0}, {1}, {2}, {3}, {4})'.format(X.shape[0],X.shape[1],X.shape[2],X.shape[3],X.shape[4]))
 print('y shape = ({0}, {1}, {2}, {3}, {4})'.format(y.shape[0],y.shape[1],y.shape[2],y.shape[3],y.shape[4]))
 print('Additional features: [%s]' % ', '.join(features_list))
@@ -145,7 +148,7 @@ for itest in range(nb_test):
         track = np.concatenate((track[None,:,:,:,:], model.predict([track_m[None,:,:,:,:], track_c[None,:,:,:]])), axis=1)
     lat, lon = get_coords(data_dir, zone)
     plot_track(true_track, track, rainfall_threshold_value,
-               new_size, input_timeframes, output_timeframes,
+               [size_regions,size_regions], input_timeframes, output_timeframes,
                lat, lon, nom_test, tag='test_'+str(itest),
                save=True, foldername=foldername)
 
