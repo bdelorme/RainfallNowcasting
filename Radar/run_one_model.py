@@ -33,7 +33,7 @@ param = json.load(args.param_file.open())
 ################################## EXPERIMENT FEATURES ##################################
 #########################################################################################
 nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
-archi = nom_test.split('_')[0]                      # NETWORK ARCHITECTURE
+archi = param['archi']                              # NETWORK ARCHITECTURE
 new_size = param['new_size']                        # SIZE DATA
 bs = param['batch_size']                            # BATCH SIZE
 ep = param['nb_epochs']                             # NB EPOCHS

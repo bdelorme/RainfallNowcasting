@@ -231,7 +231,7 @@ def keep_rainy_regions(X, X_dates, y, threshold, size_regions):
     y_new_regions[i] = y[regions_to_keep[i, 0], :, size_regions*regions_to_keep[i, 2]:size_regions*(regions_to_keep[i, 2]+1), size_regions*regions_to_keep[i, 3]:size_regions*(regions_to_keep[i, 3]+1), :]
   X_new_regions_dates = X_dates[regions_to_keep[:,0]]
   X_new_regions_regions = regions_to_keep[:, 2:4]
-  
+
   return X_new_regions, y_new_regions, X_new_regions_dates, X_new_regions_regions
 
 def keep_same_regions_as_rainfall_for_reflectivity_quality(X, X_dates, rainfall_dates, rainfall_regions, size_regions):

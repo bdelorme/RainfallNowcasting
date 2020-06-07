@@ -18,23 +18,27 @@ from models import *
 from metrics import *
 from plot_tools import *
 
+
 ### USAGE: python apply_model_to_new_test.py --nargs ddnet_rainonly.json 13 2018 3
 # with 13=nb of tests to do
 # 2018: year not used for train
 # 3: month not used for train
 
+
+### READ INPUTS
 parser = argparse.ArgumentParser()
 parser.add_argument('--nargs', nargs='+')
 args = parser.parse_args()
 param = json.load(Path(args.nargs[0]).open())
+
 
 #########################################################################################
 ################################## EXPERIMENT FEATURES ##################################
 #########################################################################################
 nb_test = int(args.nargs[1])
 nom_test = param['nom_test']                        # NAME OF THE CURRENT TEST
-archi = nom_test.split('_')[0]                              # NETWORK ARCHITECTURE
-new_size = param['new_size']    # SIZE DATA (None = keep initial size)
+archi = param['archi']                              # NETWORK ARCHITECTURE
+new_size = param['new_size']                        # SIZE DATA
 bs = param['batch_size']                            # BATCH SIZE
 
 
@@ -112,6 +116,10 @@ if archi=='ddnet':
     X_content = get_content_data(X)
 N, T, H, W, C = X.shape
 
+
+#########################################################################################
+###################################### LOAD MODEL #######################################
+#########################################################################################
 model = tf.keras.models.load_model('models/'+nom_test+'.h5',
             custom_objects={'masked_ssim': masked_ssim, 'masked_psnr': masked_psnr, 'masked_acc': masked_acc, 'masked_BMW': masked_BMW,
                             'masked_cor': masked_cor, 'masked_recall': masked_recall, 'masked_prec': masked_prec,
@@ -125,12 +133,13 @@ with open('models/'+nom_test+'_new_test.csv', 'w') as f:
     w.writeheader()
     w.writerow(results)
 
+
 ### SHUFFLE
-perm = np.random.permutation(X.shape[0])
-X = tf.gather(X, perm, axis=0)
-y = tf.gather(y, perm, axis=0)
-if archi=='ddnet':
-    X_content = tf.gather(X_content, perm, axis=0)
+#perm = np.random.permutation(X.shape[0])
+#X = tf.gather(X, perm, axis=0)
+#y = tf.gather(y, perm, axis=0)
+#if archi=='ddnet':
+#    X_content = tf.gather(X_content, perm, axis=0)
 
 
 #########################################################################################
