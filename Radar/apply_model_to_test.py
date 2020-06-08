@@ -19,8 +19,8 @@ from metrics import *
 from plot_tools import *
 
 
-### USAGE: python apply_model_to_new_test.py --nargs ddnet_rainonly.json 13 2018 3
-# with 13=nb of tests to do
+### USAGE: python apply_model_to_test.py --nargs ddnet_rainonly.json 10 2018 3
+# with 10=nb of tests to do
 # 2018: year not used for train
 # 3: month not used for train
 
