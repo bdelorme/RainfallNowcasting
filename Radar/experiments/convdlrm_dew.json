@@ -6,7 +6,7 @@
   "nb_epochs": 50,
   "loss": "mae",
   "learning_rate": 1e-4,
-  "nb_filters": 128,
+  "nb_filters": 64,
   "filter_size": 3,
   "last_filter_size": 3,
   "activation": "selu",
