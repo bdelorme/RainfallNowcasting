@@ -1,2 +1,2 @@
 # RainfallNowcasting
-Rainfall Nowcasting with CNNs
+Rainfall Nowcasting with CNNs and convLSTMs
